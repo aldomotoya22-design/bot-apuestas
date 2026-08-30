@@ -229,7 +229,7 @@ def main() -> None:
 
     # --- PROGRAMADOR DEL MENSAJE DIARIO ---
     zona_horaria = pytz.timezone('America/Mexico_City')
-    hora_despertador = datetime.time(hour=8, minute=0, second=0, tzinfo=zona_horaria)
+    hora_despertador = datetime.time(hour=9, minute=48, second=0, tzinfo=zona_horaria)
     application.job_queue.run_daily(pick_automatico, time=hora_despertador)
     # --------------------------------------
 
