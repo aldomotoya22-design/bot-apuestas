@@ -1,6 +1,8 @@
 ﻿import logging
 import os
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -18,6 +20,20 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+# --- TRUCO PARA RENDER GRATIS ---
+class DummyHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b"Bot activo y al cien")
+
+def keep_alive():
+    port = int(os.environ.get('PORT', 10000))
+    server = HTTPServer(('0.0.0.0', port), DummyHandler)
+    server.serve_forever()
+# --------------------------------
 
 def obtener_menu_principal() -> InlineKeyboardMarkup:
     keyboard = [
@@ -193,13 +209,16 @@ def main() -> None:
         logger.critical("Error: La variable de entorno 'TOKEN' no está configurada.")
         sys.exit(1)
 
+    # Iniciar la web fantasma en segundo plano para que Render no cobre
+    threading.Thread(target=keep_alive, daemon=True).start()
+
     application = ApplicationBuilder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    logger.info("Bot de apuestas iniciado con interfaz interactiva...")
+    logger.info("Bot de apuestas iniciado en modo gratuito...")
     application.run_polling()
 
 if __name__ == "__main__":
