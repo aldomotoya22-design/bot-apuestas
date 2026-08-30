@@ -2,6 +2,8 @@
 import os
 import sys
 import threading
+import datetime
+import pytz
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -203,6 +205,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             text="⚠️ Ocurrió un error inesperado al procesar tu solicitud. Por favor intenta de nuevo."
         )
 
+# --- NUEVA FUNCIÓN DEL DESPERTADOR MAÑANERO ---
+async def pick_automatico(context: ContextTypes.DEFAULT_TYPE):
+    mi_chat_id = 7913357339
+    mensaje = "👑 **Pick de Oro Mañanero** 👑\n\n¡Buenos días! Aquí va tu análisis para romperla hoy con los pronósticos..."
+    await context.bot.send_message(chat_id=mi_chat_id, text=mensaje)
+# ----------------------------------------------
+
 def main() -> None:
     TOKEN = os.environ.get("TOKEN")
     if not TOKEN:
@@ -217,6 +226,12 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+
+    # --- PROGRAMADOR DEL MENSAJE DIARIO ---
+    zona_horaria = pytz.timezone('America/Mexico_City')
+    hora_despertador = datetime.time(hour=8, minute=0, second=0, tzinfo=zona_horaria)
+    application.job_queue.run_daily(pick_automatico, time=hora_despertador)
+    # --------------------------------------
 
     logger.info("Bot de apuestas iniciado en modo gratuito...")
     application.run_polling()
