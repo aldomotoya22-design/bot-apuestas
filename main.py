@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 import os
 import sys
 import threading
@@ -99,19 +99,63 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             parse_mode="Markdown"
         )
 
+    # --- SECCIÓN DE PICKS DE VALOR CORREGIDA ---
     elif data == "picks_valor":
-        mensaje_respuesta = (
-            "🔥 *Buscando Picks de Alto Valor Hoy...*\n\n"
-            "Conectando a los algoritmos cuantitativos (+EV)... (Fase 2)"
-        )
-        teclado_volver = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Volver al menú", callback_data="volver_menu")]
-        ])
         await query.edit_message_text(
-            text=mensaje_respuesta, 
-            reply_markup=teclado_volver, 
+            text="🔥 *Buscando Picks de Alto Valor Hoy...*\n⏳ _Extrayendo datos y conectando a los algoritmos cuantitativos..._", 
             parse_mode="Markdown"
         )
+        
+        try:
+            # La IA busca los mejores datos del día
+            datos = await obtener_datos_partido("Todas las ligas", "Mejores Picks de Alto Valor Hoy")
+            contexto_datos = construir_prompt_contexto(datos)
+            
+            await query.edit_message_text(
+                text="🔥 *Buscando Picks de Alto Valor Hoy...*\n🧠 _Consultando al motor cuantitativo de IA..._",
+                parse_mode="Markdown"
+            )
+            
+            # Genera el análisis de alto valor
+            analisis_final = await generar_analisis("Todas las ligas", "Mejores Picks de Alto Valor Hoy", contexto_datos)
+            
+            if "===MEDIO===" in analisis_final and "===ALTO===" in analisis_final:
+                partes_medio = analisis_final.split("===MEDIO===")
+                context.user_data['pick_oro'] = partes_medio[0].strip()
+                
+                partes_alto = partes_medio[1].split("===ALTO===")
+                context.user_data['pick_medio'] = partes_alto[0].strip()
+                context.user_data['pick_alto'] = partes_alto[1].strip()
+                
+                texto_mostrar = context.user_data['pick_oro']
+                botones = [
+                    [InlineKeyboardButton("⚖️ Riesgo Medio", callback_data="ver_medio"), 
+                     InlineKeyboardButton("💣 Soñador", callback_data="ver_alto")],
+                    [InlineKeyboardButton("🔙 Volver al menú", callback_data="volver_menu")]
+                ]
+                teclado = InlineKeyboardMarkup(botones)
+            else:
+                texto_mostrar = analisis_final
+                teclado = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 Volver al menú", callback_data="volver_menu")]
+                ])
+            
+            await query.edit_message_text(
+                text=texto_mostrar,
+                reply_markup=teclado,
+                parse_mode=None
+            )
+            
+        except Exception as e:
+            logger.error(f"Error en picks de valor: {e}")
+            teclado_volver = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Volver al menú", callback_data="volver_menu")]
+            ])
+            await query.edit_message_text(
+                text="⚠️ Ocurrió un error al buscar los picks de valor. Intenta de nuevo.",
+                reply_markup=teclado_volver
+            )
+    # -------------------------------------------
 
     elif data == "volver_menu":
         context.user_data.clear()
@@ -126,19 +170,22 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             texto = context.user_data.get('pick_oro', '⚠️ Pick no encontrado.')
             botones = [
                 [InlineKeyboardButton("⚖️ Riesgo Medio", callback_data="ver_medio"), 
-                 InlineKeyboardButton("💣 Soñador", callback_data="ver_alto")]
+                 InlineKeyboardButton("💣 Soñador", callback_data="ver_alto")],
+                [InlineKeyboardButton("🔙 Volver al menú", callback_data="volver_menu")]
             ]
         elif data == "ver_medio":
             texto = context.user_data.get('pick_medio', '⚠️ Pick no encontrado.')
             botones = [
                 [InlineKeyboardButton("👑 Pick de Oro", callback_data="ver_oro"), 
-                 InlineKeyboardButton("💣 Soñador", callback_data="ver_alto")]
+                 InlineKeyboardButton("💣 Soñador", callback_data="ver_alto")],
+                [InlineKeyboardButton("🔙 Volver al menú", callback_data="volver_menu")]
             ]
         elif data == "ver_alto":
             texto = context.user_data.get('pick_alto', '⚠️ Pick no encontrado.')
             botones = [
                 [InlineKeyboardButton("👑 Pick de Oro", callback_data="ver_oro"), 
-                 InlineKeyboardButton("⚖️ Riesgo Medio", callback_data="ver_medio")]
+                 InlineKeyboardButton("⚖️ Riesgo Medio", callback_data="ver_medio")],
+                [InlineKeyboardButton("🔙 Volver al menú", callback_data="volver_menu")]
             ]
         
         await query.edit_message_text(
@@ -208,7 +255,27 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 # --- NUEVA FUNCIÓN DEL DESPERTADOR MAÑANERO ---
 async def pick_automatico(context: ContextTypes.DEFAULT_TYPE):
     mi_chat_id = 7913357339
-    mensaje = "👑 **Pick de Oro Mañanero** 👑\n\n¡Buenos días! Aquí va tu análisis para romperla hoy con los pronósticos..."
+    
+    # Mensaje de aviso mientras la IA piensa
+    await context.bot.send_message(
+        chat_id=mi_chat_id, 
+        text="☀️ ¡Buenos días! Despertando a la IA para buscar tu Pick de Oro de hoy... ⏳"
+    )
+    
+    try:
+        # Aquí la IA busca los datos del día
+        datos = await obtener_datos_partido("⚽ Fútbol", "Mejores partidos de hoy")
+        contexto_datos = construir_prompt_contexto(datos)
+        
+        # Generamos el análisis real con IA
+        analisis_final = await generar_analisis("⚽ Fútbol", "Mejores partidos de hoy", contexto_datos)
+        
+        mensaje = f"👑 **Pick de Oro Mañanero** 👑\n\n{analisis_final}"
+        
+    except Exception as e:
+        logger.error(f"Error en pick mañanero: {e}")
+        mensaje = "👑 **Pick de Oro Mañanero** 👑\n\nNo pude raspar los partidos de hoy automáticamente, mi pa. Échame un partido manual aquí en el chat."
+
     await context.bot.send_message(chat_id=mi_chat_id, text=mensaje)
 # ----------------------------------------------
 
@@ -229,7 +296,7 @@ def main() -> None:
 
     # --- PROGRAMADOR DEL MENSAJE DIARIO ---
     zona_horaria = pytz.timezone('America/Mexico_City')
-    hora_despertador = datetime.time(hour=9, minute=48, second=0, tzinfo=zona_horaria)
+    hora_despertador = datetime.time(hour=8, minute=0, second=0, tzinfo=zona_horaria)
     application.job_queue.run_daily(pick_automatico, time=hora_despertador)
     # --------------------------------------
 
