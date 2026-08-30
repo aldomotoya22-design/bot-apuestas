@@ -99,7 +99,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             parse_mode="Markdown"
         )
 
-    # --- SECCIÓN DE PICKS DE VALOR CORREGIDA ---
     elif data == "picks_valor":
         await query.edit_message_text(
             text="🔥 *Buscando Picks de Alto Valor Hoy...*\n⏳ _Extrayendo datos y conectando a los algoritmos cuantitativos..._", 
@@ -107,7 +106,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         
         try:
-            # La IA busca los mejores datos del día
             datos = await obtener_datos_partido("Todas las ligas", "Mejores Picks de Alto Valor Hoy")
             contexto_datos = construir_prompt_contexto(datos)
             
@@ -116,16 +114,18 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 parse_mode="Markdown"
             )
             
-            # Genera el análisis de alto valor
             analisis_final = await generar_analisis("Todas las ligas", "Mejores Picks de Alto Valor Hoy", contexto_datos)
+            
+            # --- ENCABEZADO MAMALÓN ---
+            titulo_encabezado = "🏆 LIGA: Múltiples Ligas\n🔥 ENCUENTRO: Picks de Alto Valor Hoy\n\n"
             
             if "===MEDIO===" in analisis_final and "===ALTO===" in analisis_final:
                 partes_medio = analisis_final.split("===MEDIO===")
-                context.user_data['pick_oro'] = partes_medio[0].strip()
+                context.user_data['pick_oro'] = titulo_encabezado + partes_medio[0].strip()
                 
                 partes_alto = partes_medio[1].split("===ALTO===")
-                context.user_data['pick_medio'] = partes_alto[0].strip()
-                context.user_data['pick_alto'] = partes_alto[1].strip()
+                context.user_data['pick_medio'] = titulo_encabezado + partes_alto[0].strip()
+                context.user_data['pick_alto'] = titulo_encabezado + partes_alto[1].strip()
                 
                 texto_mostrar = context.user_data['pick_oro']
                 botones = [
@@ -135,7 +135,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 ]
                 teclado = InlineKeyboardMarkup(botones)
             else:
-                texto_mostrar = analisis_final
+                texto_mostrar = titulo_encabezado + analisis_final
                 teclado = InlineKeyboardMarkup([
                     [InlineKeyboardButton("🔙 Volver al menú", callback_data="volver_menu")]
                 ])
@@ -155,7 +155,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 text="⚠️ Ocurrió un error al buscar los picks de valor. Intenta de nuevo.",
                 reply_markup=teclado_volver
             )
-    # -------------------------------------------
 
     elif data == "volver_menu":
         context.user_data.clear()
@@ -222,13 +221,16 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         
         analisis_final = await generar_analisis(liga, partido_solicitado, contexto_datos)
         
+        # --- ENCABEZADO MAMALÓN ---
+        titulo_encabezado = f"🏆 LIGA: {liga}\n⚔️ ENCUENTRO: {partido_solicitado}\n\n"
+        
         if "===MEDIO===" in analisis_final and "===ALTO===" in analisis_final:
             partes_medio = analisis_final.split("===MEDIO===")
-            context.user_data['pick_oro'] = partes_medio[0].strip()
+            context.user_data['pick_oro'] = titulo_encabezado + partes_medio[0].strip()
             
             partes_alto = partes_medio[1].split("===ALTO===")
-            context.user_data['pick_medio'] = partes_alto[0].strip()
-            context.user_data['pick_alto'] = partes_alto[1].strip()
+            context.user_data['pick_medio'] = titulo_encabezado + partes_alto[0].strip()
+            context.user_data['pick_alto'] = titulo_encabezado + partes_alto[1].strip()
             
             texto_mostrar = context.user_data['pick_oro']
             botones = [
@@ -237,7 +239,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             ]
             teclado = InlineKeyboardMarkup(botones)
         else:
-            texto_mostrar = analisis_final
+            texto_mostrar = titulo_encabezado + analisis_final
             teclado = None
         
         await mensaje_espera.edit_text(
@@ -256,18 +258,14 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def pick_automatico(context: ContextTypes.DEFAULT_TYPE):
     mi_chat_id = 7913357339
     
-    # Mensaje de aviso mientras la IA piensa
     await context.bot.send_message(
         chat_id=mi_chat_id, 
         text="☀️ ¡Buenos días! Despertando a la IA para buscar tu Pick de Oro de hoy... ⏳"
     )
     
     try:
-        # Aquí la IA busca los datos del día
         datos = await obtener_datos_partido("⚽ Fútbol", "Mejores partidos de hoy")
         contexto_datos = construir_prompt_contexto(datos)
-        
-        # Generamos el análisis real con IA
         analisis_final = await generar_analisis("⚽ Fútbol", "Mejores partidos de hoy", contexto_datos)
         
         mensaje = f"👑 **Pick de Oro Mañanero** 👑\n\n{analisis_final}"
@@ -285,7 +283,6 @@ def main() -> None:
         logger.critical("Error: La variable de entorno 'TOKEN' no está configurada.")
         sys.exit(1)
 
-    # Iniciar la web fantasma en segundo plano para que Render no cobre
     threading.Thread(target=keep_alive, daemon=True).start()
 
     application = ApplicationBuilder().token(TOKEN).build()
