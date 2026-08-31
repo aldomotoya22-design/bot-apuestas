@@ -23,7 +23,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --- TRUCO PARA RENDER GRATIS ---
 class DummyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -35,7 +34,6 @@ def keep_alive():
     port = int(os.environ.get('PORT', 10000))
     server = HTTPServer(('0.0.0.0', port), DummyHandler)
     server.serve_forever()
-# --------------------------------
 
 def obtener_menu_principal() -> InlineKeyboardMarkup:
     keyboard = [
@@ -128,6 +126,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             
             analisis_final = await generar_analisis("Múltiples Ligas", solicitud_estricta, contexto_datos)
             
+            # --- GUARDAMOS EN MEMORIA PARA LA CHARLA ---
+            context.user_data['ultimo_pick_generado'] = analisis_final
+            
             titulo_encabezado = f"🏆 LIGA: Múltiples Ligas (Filtro: Después de las {hora_actual})\n🔥 ENCUENTRO: Picks de Alto Valor Reales de Hoy\n\n"
             
             if "===MEDIO===" in analisis_final and "===ALTO===" in analisis_final:
@@ -205,6 +206,32 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    texto_usuario = update.message.text
+    ultimo_pick = context.user_data.get('ultimo_pick_generado')
+    
+    # --- DETECTOR DE CHARLA / PREGUNTAS DE SEGUIMIENTO ---
+    indicadores_charla = ["?", "combinada", "y de", "por qué", "dime", "crees", "recomiendas", "parlay"]
+    es_charla = any(ind in texto_usuario.lower() for ind in indicadores_charla) or len(texto_usuario.split()) > 6
+
+    if es_charla and ultimo_pick:
+        mensaje_espera = await update.message.reply_text("💬 _Platicando con la IA sobre tu pick..._", parse_mode="Markdown")
+        try:
+            instruccion_charla = f"El usuario te hace una pregunta de seguimiento: '{texto_usuario}'. Responde directamente a su duda basándote en el pick anterior."
+            contexto_memoria = f"=== ÚLTIMO PRONÓSTICO DADO COMO CONTEXTO ===\n{ultimo_pick}"
+            
+            # Reutilizamos el motor de la IA pero ahora para platicar
+            respuesta_charla = await generar_analisis("Charla", instruccion_charla, contexto_memoria)
+            
+            # Actualizamos la memoria para que la plática pueda seguir y seguir
+            context.user_data['ultimo_pick_generado'] = ultimo_pick + "\n\nUsuario: " + texto_usuario + "\n\nIA: " + respuesta_charla
+            
+            await mensaje_espera.edit_text(respuesta_charla)
+        except Exception as e:
+            logger.error(f"Error en modo charla: {e}")
+            await mensaje_espera.edit_text("⚠️ No pude procesar tu pregunta de seguimiento.")
+        return
+    # -----------------------------------------------------
+
     liga = context.user_data.get('liga_seleccionada')
     
     if not liga:
@@ -213,15 +240,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         return
         
-    partido_solicitado = update.message.text
-    context.user_data['partido'] = partido_solicitado
+    context.user_data['partido'] = texto_usuario
 
-    # --- INYECCIÓN OCULTA PARA MODO "A SECAS" (BACKTESTING) ---
-    if "," in partido_solicitado or " y " in partido_solicitado.lower():
-        solicitud_ia = partido_solicitado + " (Instrucción estricta: El usuario está pidiendo varios partidos a la vez para medir tu porcentaje de acierto. Dame los pronósticos totalmente directos, a secas y al grano, sin explicaciones largas ni introducciones)."
+    if "," in texto_usuario or " y " in texto_usuario.lower():
+        solicitud_ia = texto_usuario + " (Instrucción estricta: El usuario está pidiendo varios partidos a la vez para medir tu porcentaje de acierto. Dame los pronósticos totalmente directos, a secas y al grano, sin explicaciones largas ni introducciones)."
     else:
-        solicitud_ia = partido_solicitado
-    # ----------------------------------------------------------
+        solicitud_ia = texto_usuario
     
     mensaje_espera = await update.message.reply_text(
         text=f"⚙️ Procesando análisis para la *{liga}*...\n⏳ _Extrayendo datos deportivos..._",
@@ -239,7 +263,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         
         analisis_final = await generar_analisis(liga, solicitud_ia, contexto_datos)
         
-        titulo_encabezado = f"🏆 LIGA: {liga}\n⚔️ ENCUENTRO: {partido_solicitado}\n\n"
+        # --- GUARDAMOS EN MEMORIA PARA LA CHARLA ---
+        context.user_data['ultimo_pick_generado'] = analisis_final
+        
+        titulo_encabezado = f"🏆 LIGA: {liga}\n⚔️ ENCUENTRO: {texto_usuario}\n\n"
         
         if "===MEDIO===" in analisis_final and "===ALTO===" in analisis_final:
             partes_medio = analisis_final.split("===MEDIO===")
@@ -271,7 +298,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             text="⚠️ Ocurrió un error inesperado al procesar tu solicitud. Por favor intenta de nuevo."
         )
 
-# --- NUEVA FUNCIÓN DEL DESPERTADOR MAÑANERO ---
 async def pick_automatico(context: ContextTypes.DEFAULT_TYPE):
     mi_chat_id = 7913357339
     
@@ -303,7 +329,6 @@ async def pick_automatico(context: ContextTypes.DEFAULT_TYPE):
         mensaje = "👑 **Pick de Oro Mañanero** 👑\n\nNo pude raspar los partidos de hoy automáticamente, mi pa. Échame un partido manual aquí en el chat."
 
     await context.bot.send_message(chat_id=mi_chat_id, text=mensaje)
-# ----------------------------------------------
 
 def main() -> None:
     TOKEN = os.environ.get("TOKEN")
