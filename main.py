@@ -101,12 +101,24 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     elif data == "picks_valor":
         await query.edit_message_text(
-            text="🔥 *Buscando Picks de Alto Valor Hoy...*\n⏳ _Extrayendo datos y conectando a los algoritmos cuantitativos..._", 
+            text="🔥 *Buscando Picks de Alto Valor Hoy...*\n⏳ _Extrayendo datos de partidos reales próximos a jugarse..._", 
             parse_mode="Markdown"
         )
         
         try:
-            datos = await obtener_datos_partido("Todas las ligas", "Mejores Picks de Alto Valor Hoy")
+            zona = pytz.timezone('America/Mexico_City')
+            ahora = datetime.datetime.now(zona)
+            fecha_hoy = ahora.strftime('%d/%m/%Y')
+            hora_actual = ahora.strftime('%H:%M')
+            
+            solicitud_estricta = (
+                f"Picks de Alto Valor para HOY {fecha_hoy}. Ahorita son las {hora_actual} horas en tiempo real. "
+                f"EXCLUYE cualquier partido que ya haya empezado o terminado. SOLO dame partidos 100% reales "
+                f"de CUALQUIER LIGA (Fútbol, MLB, WNBA, etc.) que estén por jugarse hoy DESPUÉS de las {hora_actual}. "
+                f"Puedes combinar partidos para hacer parlay si tienen buen valor."
+            )
+            
+            datos = await obtener_datos_partido("Múltiples Ligas", solicitud_estricta)
             contexto_datos = construir_prompt_contexto(datos)
             
             await query.edit_message_text(
@@ -114,10 +126,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 parse_mode="Markdown"
             )
             
-            analisis_final = await generar_analisis("Todas las ligas", "Mejores Picks de Alto Valor Hoy", contexto_datos)
+            analisis_final = await generar_analisis("Múltiples Ligas", solicitud_estricta, contexto_datos)
             
-            # --- ENCABEZADO MAMALÓN ---
-            titulo_encabezado = "🏆 LIGA: Múltiples Ligas\n🔥 ENCUENTRO: Picks de Alto Valor Hoy\n\n"
+            titulo_encabezado = f"🏆 LIGA: Múltiples Ligas (Filtro: Después de las {hora_actual})\n🔥 ENCUENTRO: Picks de Alto Valor Reales de Hoy\n\n"
             
             if "===MEDIO===" in analisis_final and "===ALTO===" in analisis_final:
                 partes_medio = analisis_final.split("===MEDIO===")
@@ -204,6 +215,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         
     partido_solicitado = update.message.text
     context.user_data['partido'] = partido_solicitado
+
+    # --- INYECCIÓN OCULTA PARA MODO "A SECAS" (BACKTESTING) ---
+    if "," in partido_solicitado or " y " in partido_solicitado.lower():
+        solicitud_ia = partido_solicitado + " (Instrucción estricta: El usuario está pidiendo varios partidos a la vez para medir tu porcentaje de acierto. Dame los pronósticos totalmente directos, a secas y al grano, sin explicaciones largas ni introducciones)."
+    else:
+        solicitud_ia = partido_solicitado
+    # ----------------------------------------------------------
     
     mensaje_espera = await update.message.reply_text(
         text=f"⚙️ Procesando análisis para la *{liga}*...\n⏳ _Extrayendo datos deportivos..._",
@@ -211,7 +229,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
     
     try:
-        datos = await obtener_datos_partido(liga, partido_solicitado)
+        datos = await obtener_datos_partido(liga, solicitud_ia)
         contexto_datos = construir_prompt_contexto(datos)
         
         await mensaje_espera.edit_text(
@@ -219,9 +237,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             parse_mode="Markdown"
         )
         
-        analisis_final = await generar_analisis(liga, partido_solicitado, contexto_datos)
+        analisis_final = await generar_analisis(liga, solicitud_ia, contexto_datos)
         
-        # --- ENCABEZADO MAMALÓN ---
         titulo_encabezado = f"🏆 LIGA: {liga}\n⚔️ ENCUENTRO: {partido_solicitado}\n\n"
         
         if "===MEDIO===" in analisis_final and "===ALTO===" in analisis_final:
@@ -264,11 +281,22 @@ async def pick_automatico(context: ContextTypes.DEFAULT_TYPE):
     )
     
     try:
-        datos = await obtener_datos_partido("⚽ Fútbol", "Mejores partidos de hoy")
-        contexto_datos = construir_prompt_contexto(datos)
-        analisis_final = await generar_analisis("⚽ Fútbol", "Mejores partidos de hoy", contexto_datos)
+        zona = pytz.timezone('America/Mexico_City')
+        ahora = datetime.datetime.now(zona)
+        fecha_hoy = ahora.strftime('%d/%m/%Y')
+        hora_actual = ahora.strftime('%H:%M')
         
-        mensaje = f"👑 **Pick de Oro Mañanero** 👑\n\n{analisis_final}"
+        solicitud_estricta = (
+            f"El mejor pick seguro y real para HOY {fecha_hoy}. Ahorita son las {hora_actual} horas. "
+            f"SOLO dame partidos comprobables de CUALQUIER LIGA que empiecen DESPUÉS de esta hora. "
+            f"Puedes armar un parlay combinado del día si hay valor."
+        )
+        
+        datos = await obtener_datos_partido("Múltiples Ligas", solicitud_estricta)
+        contexto_datos = construir_prompt_contexto(datos)
+        analisis_final = await generar_analisis("Múltiples Ligas", solicitud_estricta, contexto_datos)
+        
+        mensaje = f"🏆 LIGA: Múltiples Ligas\n🔥 ENCUENTRO: Pick Real de Hoy ({fecha_hoy})\n\n👑 **Pick de Oro Mañanero** 👑\n\n{analisis_final}"
         
     except Exception as e:
         logger.error(f"Error en pick mañanero: {e}")
@@ -291,11 +319,9 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    # --- PROGRAMADOR DEL MENSAJE DIARIO ---
     zona_horaria = pytz.timezone('America/Mexico_City')
     hora_despertador = datetime.time(hour=8, minute=0, second=0, tzinfo=zona_horaria)
     application.job_queue.run_daily(pick_automatico, time=hora_despertador)
-    # --------------------------------------
 
     logger.info("Bot de apuestas iniciado en modo gratuito...")
     application.run_polling()
