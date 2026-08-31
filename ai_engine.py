@@ -1,4 +1,4 @@
-﻿import os
+import os
 import logging
 import google.generativeai as genai
 
@@ -27,37 +27,57 @@ Quiero un análisis profundo, actualizado y basado principalmente en cómo llega
 REGLAS DE FORMATO Y ESTÉTICA (ESTRICTAS):
 Para que la aplicación funcione, tu texto final DEBE ser menor a 3500 caracteres y DEBE dividirse en 3 partes exactas usando los separadores "===MEDIO===" y "===ALTO===".
 
-Formato de Salida Obligatorio:
-🔥 **Análisis del partido**
-• **Forma reciente:** [...]
-• **Lesiones/ausencias:** [...]
-• **Estadísticas y Matchup:** [...]
-• **Contexto:** [...]
-• **Mercado Solicitado:** [...]
+A partir de ahora, DEBES usar ESTRICTAMENTE esta plantilla visual para TODAS tus respuestas. No agregues saludos fuera de este formato. 
+Reemplaza los corchetes con la información del partido:
 
-Factores a favor:
-🟢 [...]
-🟢 [...]
+⚔️ **[EQUIPO LOCAL] VS [EQUIPO VISITANTE]** ⚔️
 
-Factores en contra:
-🔴 [...]
-🔴 [...]
+───────────────
+🔥 **ANÁLISIS DEL ENCUENTRO**
+───────────────
+📈 **Forma Reciente:**
+[Redacta aquí cómo llegan los equipos]
 
-👑 **EL PICK DE ORO (El más sólido)**
-✅ **Apuesta:** [Tu mejor pick]
-🎯 **Probabilidad:** [XX]% | **Confianza:** [X/10] | 🚦 [🟢 Me gusta / 🟡 Me gusta con riesgo]
-📊 **Marcador proyectado:** [Marcador]
-💭 **Escenario:** [Qué tendría que pasar para ganar/perder]
+🏥 **Lesiones y Ausencias:**
+[Menciona las bajas clave o estado del roster]
+
+📊 **Estadísticas y Matchup:**
+[Datos clave de ofensiva/defensiva/pitchers]
+
+🧠 **Contexto:**
+[Fatiga, clima, viajes, motivación]
+
+───────────────
+⚖️ **BALANCE DEL PARTIDO**
+───────────────
+✅ *A favor del pick:*
+• [Punto a favor 1]
+• [Punto a favor 2]
+
+⚠️ *En contra del pick:*
+• [Punto en contra 1]
+• [Punto en contra 2]
+
+───────────────
+👑 **EL PICK DE ORO (El más sólido)** 👑
+───────────────
+🎯 **Apuesta:** [Tu mejor pick]
+🎰 **Dónde apostar:** [Recomienda meterla en Caliente Casino, BetVIP, Novibet, Betxico, Draftea o Winpot]
+📊 **Probabilidad:** [XX]% | 🟢 **Confianza:** [X/10]
+🔮 **Marcador Proyectado:** [Marcador]
+💡 **Escenario:** [Breve explicación de cómo se ganará la apuesta]
 
 ===MEDIO===
 ⚖️ **EL PICK DE RIESGO MEDIO**
 ⚠️ **Apuesta:** [Pick moderado]
+🎰 **Dónde apostar:** [Menciona otra casa de apuestas de México]
 🎯 **Probabilidad:** [XX]% | **Confianza:** [X/10]
 💭 **Escenario:** [Breve justificación]
 
 ===ALTO===
 💣 **EL PICK SOÑADOR**
 💎 **Apuesta:** [Pick arriesgado con cuota alta]
+🎰 **Dónde apostar:** [Menciona otra casa de apuestas de México]
 🎯 **Probabilidad:** [XX]% | **Confianza:** [X/10]
 💭 **Escenario:** [Breve justificación]
 '''
