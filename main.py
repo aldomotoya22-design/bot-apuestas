@@ -126,10 +126,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             
             analisis_final = await generar_analisis("Múltiples Ligas", solicitud_estricta, contexto_datos)
             
-            # --- GUARDAMOS EN MEMORIA PARA LA CHARLA ---
             context.user_data['ultimo_pick_generado'] = analisis_final
             
-            titulo_encabezado = f"🏆 LIGA: Múltiples Ligas (Filtro: Después de las {hora_actual})\n🔥 ENCUENTRO: Picks de Alto Valor Reales de Hoy\n\n"
+            # Encabezados limpios borrados para no encimar con la IA
+            titulo_encabezado = ""
             
             if "===MEDIO===" in analisis_final and "===ALTO===" in analisis_final:
                 partes_medio = analisis_final.split("===MEDIO===")
@@ -209,7 +209,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     texto_usuario = update.message.text
     ultimo_pick = context.user_data.get('ultimo_pick_generado')
     
-    # --- DETECTOR DE CHARLA / PREGUNTAS DE SEGUIMIENTO ---
     indicadores_charla = ["?", "combinada", "y de", "por qué", "dime", "crees", "recomiendas", "parlay"]
     es_charla = any(ind in texto_usuario.lower() for ind in indicadores_charla) or len(texto_usuario.split()) > 6
 
@@ -219,10 +218,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             instruccion_charla = f"El usuario te hace una pregunta de seguimiento: '{texto_usuario}'. Responde directamente a su duda basándote en el pick anterior."
             contexto_memoria = f"=== ÚLTIMO PRONÓSTICO DADO COMO CONTEXTO ===\n{ultimo_pick}"
             
-            # Reutilizamos el motor de la IA pero ahora para platicar
             respuesta_charla = await generar_analisis("Charla", instruccion_charla, contexto_memoria)
             
-            # Actualizamos la memoria para que la plática pueda seguir y seguir
             context.user_data['ultimo_pick_generado'] = ultimo_pick + "\n\nUsuario: " + texto_usuario + "\n\nIA: " + respuesta_charla
             
             await mensaje_espera.edit_text(respuesta_charla)
@@ -230,7 +227,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             logger.error(f"Error en modo charla: {e}")
             await mensaje_espera.edit_text("⚠️ No pude procesar tu pregunta de seguimiento.")
         return
-    # -----------------------------------------------------
 
     liga = context.user_data.get('liga_seleccionada')
     
@@ -263,10 +259,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         
         analisis_final = await generar_analisis(liga, solicitud_ia, contexto_datos)
         
-        # --- GUARDAMOS EN MEMORIA PARA LA CHARLA ---
         context.user_data['ultimo_pick_generado'] = analisis_final
         
-        titulo_encabezado = f"🏆 LIGA: {liga}\n⚔️ ENCUENTRO: {texto_usuario}\n\n"
+        # Encabezados limpios borrados para no encimar con la IA
+        titulo_encabezado = ""
         
         if "===MEDIO===" in analisis_final and "===ALTO===" in analisis_final:
             partes_medio = analisis_final.split("===MEDIO===")
@@ -322,7 +318,8 @@ async def pick_automatico(context: ContextTypes.DEFAULT_TYPE):
         contexto_datos = construir_prompt_contexto(datos)
         analisis_final = await generar_analisis("Múltiples Ligas", solicitud_estricta, contexto_datos)
         
-        mensaje = f"🏆 LIGA: Múltiples Ligas\n🔥 ENCUENTRO: Pick Real de Hoy ({fecha_hoy})\n\n👑 **Pick de Oro Mañanero** 👑\n\n{analisis_final}"
+        # Encabezado viejo borrado
+        mensaje = analisis_final
         
     except Exception as e:
         logger.error(f"Error en pick mañanero: {e}")
